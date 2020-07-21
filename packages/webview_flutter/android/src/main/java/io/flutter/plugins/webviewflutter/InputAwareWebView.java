@@ -263,6 +263,9 @@ final class InputAwareWebView extends WebView {
             LayoutInflater.from(getContext()).inflate(R.layout.floating_action_mode, null);
     for (int i = 0; i < actionMode.getMenu().size(); i++) {
       final MenuItem menu = actionMode.getMenu().getItem(i);
+      if (menu.getTitle().equals("网页搜索")) continue;
+      if (menu.getTitle().equals("一点发现")) continue;
+      if (menu.getTitle().equals("分享")) continue;
       TextView text =
           (TextView)
               LayoutInflater.from(getContext()).inflate(R.layout.floating_action_mode_item, null);
