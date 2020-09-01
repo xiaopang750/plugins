@@ -44,21 +44,13 @@ public class WebViewFlutterPlugin implements FlutterPlugin {
   public static void registerWith(Registrar registrar) {
     registrar
         .platformViewRegistry()
-        .registerViewFactory(
-            "plugins.flutter.io/webview",
-            new WebViewFactory(registrar.messenger(), registrar.view()));
+        .registerViewFactory("plugins.flutter.io/webview", new WebViewFactory(registrar));
     new FlutterCookieManager(registrar.messenger());
   }
 
   @Override
   public void onAttachedToEngine(FlutterPluginBinding binding) {
     BinaryMessenger messenger = binding.getBinaryMessenger();
-    binding
-        .getFlutterEngine()
-        .getPlatformViewsController()
-        .getRegistry()
-        .registerViewFactory(
-            "plugins.flutter.io/webview", new WebViewFactory(messenger, /*containerView=*/ null));
     flutterCookieManager = new FlutterCookieManager(messenger);
   }
 

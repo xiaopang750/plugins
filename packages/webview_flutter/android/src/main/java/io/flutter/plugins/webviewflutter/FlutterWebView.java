@@ -12,6 +12,7 @@ import android.os.Handler;
 import android.view.View;
 import android.webkit.WebStorage;
 import android.webkit.WebViewClient;
+import io.flutter.plugin.common.PluginRegistry;
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
@@ -33,11 +34,12 @@ public class FlutterWebView implements PlatformView, MethodCallHandler {
   @SuppressWarnings("unchecked")
   FlutterWebView(
       final Context context,
-      BinaryMessenger messenger,
       int id,
       Map<String, Object> params,
-      View containerView) {
+      PluginRegistry.Registrar registrar) {
 
+    BinaryMessenger messenger = registrar.messenger();
+    final View containerView = registrar.view();
     DisplayListenerProxy displayListenerProxy = new DisplayListenerProxy();
     DisplayManager displayManager =
         (DisplayManager) context.getSystemService(Context.DISPLAY_SERVICE);
@@ -48,6 +50,11 @@ public class FlutterWebView implements PlatformView, MethodCallHandler {
     platformThreadHandler = new Handler(context.getMainLooper());
     // Allow local storage.
     webView.getSettings().setDomStorageEnabled(true);
+    // choose file
+    webView.getSettings().setAllowFileAccess(true);
+    final FlutterWebViewChromeClient webViewChromeClient =
+        new FlutterWebViewChromeClient(registrar);
+    webView.setWebChromeClient(webViewChromeClient);
     webView.getSettings().setJavaScriptCanOpenWindowsAutomatically(true);
 
     methodChannel = new MethodChannel(messenger, "plugins.flutter.io/webview_" + id);
