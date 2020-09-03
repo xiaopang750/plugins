@@ -31,10 +31,21 @@ public class FlutterWebViewChromeClient extends WebChromeClient
 
   private PluginRegistry.Registrar registrar;
 
-  public FlutterWebViewChromeClient(PluginRegistry.Registrar registrar) {
+  private static FlutterWebViewChromeClient flutterWebViewChromeClient;
+
+  private FlutterWebViewChromeClient(PluginRegistry.Registrar registrar) {
     super();
     this.registrar = registrar;
     registrar.addActivityResultListener(this);
+  }
+
+  public static FlutterWebViewChromeClient getInstance(PluginRegistry.Registrar registrar) {
+    if (flutterWebViewChromeClient == null) {
+      flutterWebViewChromeClient = new FlutterWebViewChromeClient(registrar);
+      return flutterWebViewChromeClient;
+    } else {
+      return flutterWebViewChromeClient;
+    }
   }
 
   @Override

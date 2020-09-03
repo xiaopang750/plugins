@@ -53,7 +53,7 @@ public class FlutterWebView implements PlatformView, MethodCallHandler {
     // choose file
     webView.getSettings().setAllowFileAccess(true);
     final FlutterWebViewChromeClient webViewChromeClient =
-        new FlutterWebViewChromeClient(registrar);
+        FlutterWebViewChromeClient.getInstance(registrar);
     webView.setWebChromeClient(webViewChromeClient);
     webView.getSettings().setJavaScriptCanOpenWindowsAutomatically(true);
 
