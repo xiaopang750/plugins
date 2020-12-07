@@ -1,5 +1,6 @@
 package io.flutter.plugins.webviewflutter;
 
+import android.Manifest;
 import static android.app.Activity.RESULT_CANCELED;
 import static android.app.Activity.RESULT_OK;
 
@@ -32,8 +33,12 @@ import android.webkit.WebView;
 import androidx.annotation.Nullable;
 import android.database.Cursor;
 import io.flutter.plugin.common.PluginRegistry;
+import android.content.pm.PackageManager;
+import androidx.core.content.ContextCompat;
+import androidx.core.app.ActivityCompat;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Date;
 import java.text.SimpleDateFormat;
@@ -69,6 +74,7 @@ public class FlutterWebViewChromeClient extends WebChromeClient
     this.registrar = registrar;
     this.applicationContext = context;
     registrar.addActivityResultListener(this);
+    this.activity = registrar.activity();
   }
 
   public static FlutterWebViewChromeClient getInstance(PluginRegistry.Registrar registrar, Context context) {
@@ -181,6 +187,7 @@ public class FlutterWebViewChromeClient extends WebChromeClient
     super.onGeolocationPermissionsHidePrompt();
   }
 
+  @TargetApi(Build.VERSION_CODES.LOLLIPOP)
   @Override
   public void onPermissionRequest(PermissionRequest request) {
     super.onPermissionRequest(request);
@@ -252,6 +259,25 @@ public class FlutterWebViewChromeClient extends WebChromeClient
       return FileProvider.getUriForFile(applicationContext, packageName + ".fileprovider", capturedFile);
   }
 
+
+  protected boolean needsCameraPermission() {
+    boolean needed = false;
+
+    // Activity activity = inAppBrowserActivity != null ? inAppBrowserActivity : Shared.activity;
+    PackageManager packageManager = activity.getPackageManager();
+    try {
+      String[] requestedPermissions = packageManager.getPackageInfo(applicationContext.getPackageName(), PackageManager.GET_PERMISSIONS).requestedPermissions;
+      if (Arrays.asList(requestedPermissions).contains(Manifest.permission.CAMERA)
+              && ContextCompat.checkSelfPermission(activity, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+        needed = true;
+      }
+    } catch (PackageManager.NameNotFoundException e) {
+      needed = true;
+    }
+
+    return needed;
+  }
+
   @TargetApi(Build.VERSION_CODES.LOLLIPOP)
   @Override
   public boolean onShowFileChooser(
@@ -259,30 +285,37 @@ public class FlutterWebViewChromeClient extends WebChromeClient
     this.filePathCallback = filePathCallback;
 
     List<Intent> intentList = new ArrayList<Intent>();
-    
-    // photo
-    Intent takePhotoIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-    fileUri = getOutputFilename(MediaStore.ACTION_IMAGE_CAPTURE);
-    takePhotoIntent.putExtra(MediaStore.EXTRA_OUTPUT, fileUri);
-    intentList.add(takePhotoIntent);
 
-    // file
-    final boolean allowMultiple = fileChooserParams.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE;
-    Intent contentSelectionIntent = fileChooserParams.createIntent();
-    // contentSelectionIntent.addCategory(Intent.CATEGORY_OPENABLE);
-    contentSelectionIntent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, allowMultiple);
-    // contentSelectionIntent.setType("*/*");
-
-    Intent[] intentArray = intentList.toArray(new Intent[intentList.size()]);
-    Intent chooserIntent = new Intent(Intent.ACTION_CHOOSER);
-    chooserIntent.putExtra(Intent.EXTRA_INTENT, contentSelectionIntent);
-    chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, intentArray);
-
-    try {
-      registrar.activity().startActivityForResult(chooserIntent, REQUEST_CODE_FILE_CHOOSER);
-    } catch (ActivityNotFoundException e) {
-      e.printStackTrace();
+    if (needsCameraPermission()) {
+      ActivityCompat.requestPermissions(activity, new String[]{Manifest.permission.CAMERA}, 513469796);
+      // should return false
       return false;
+    } else {
+      // photo
+      Intent takePhotoIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+      fileUri = getOutputFilename(MediaStore.ACTION_IMAGE_CAPTURE);
+      takePhotoIntent.putExtra(MediaStore.EXTRA_OUTPUT, fileUri);
+      intentList.add(takePhotoIntent);
+      
+
+      // file
+      final boolean allowMultiple = fileChooserParams.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE;
+      Intent contentSelectionIntent = fileChooserParams.createIntent();
+      // contentSelectionIntent.addCategory(Intent.CATEGORY_OPENABLE);
+      contentSelectionIntent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, allowMultiple);
+      // contentSelectionIntent.setType("*/*");
+
+      Intent[] intentArray = intentList.toArray(new Intent[intentList.size()]);
+      Intent chooserIntent = new Intent(Intent.ACTION_CHOOSER);
+      chooserIntent.putExtra(Intent.EXTRA_INTENT, contentSelectionIntent);
+      chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, intentArray);
+
+      try {
+        activity.startActivityForResult(chooserIntent, REQUEST_CODE_FILE_CHOOSER);
+      } catch (ActivityNotFoundException e) {
+        e.printStackTrace();
+        return false;
+      }
     }
     return true;
   }
