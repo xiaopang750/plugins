@@ -10,12 +10,17 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Build;
+import android.content.res.Configuration;
 import android.os.Environment;
 import android.os.Message;
+import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.provider.MediaStore;
 import android.provider.OpenableColumns;
 import android.os.Parcelable;
 import android.view.View;
+import android.view.Gravity;
+import android.graphics.Color;
 import java.io.IOException;
 import java.io.File;
 import android.content.Context;
@@ -36,6 +41,8 @@ import io.flutter.plugin.common.PluginRegistry;
 import android.content.pm.PackageManager;
 import androidx.core.content.ContextCompat;
 import androidx.core.app.ActivityCompat;
+import android.widget.FrameLayout;
+import android.content.pm.ActivityInfo;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -68,6 +75,29 @@ public class FlutterWebViewChromeClient extends WebChromeClient
   private PluginRegistry.Registrar registrar;
 
   private static FlutterWebViewChromeClient flutterWebViewChromeClient;
+
+  protected static final FrameLayout.LayoutParams FULLSCREEN_LAYOUT_PARAMS = new FrameLayout.LayoutParams(
+          ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, Gravity.CENTER);
+
+  protected static final int FULLSCREEN_SYSTEM_UI_VISIBILITY_KITKAT = View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+          View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+          View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+          View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+          View.SYSTEM_UI_FLAG_FULLSCREEN |
+          View.SYSTEM_UI_FLAG_IMMERSIVE |
+          View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+
+  protected static final int FULLSCREEN_SYSTEM_UI_VISIBILITY = View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+          View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+          View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+          View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+          View.SYSTEM_UI_FLAG_FULLSCREEN;
+
+  private int mOriginalOrientation;
+  private View mCustomView;
+  private CustomViewCallback mCustomViewCallback;
+  private int mOriginalSystemUiVisibility;
+  // int orientation = getResources().getConfiguration().orientation;
 
   private FlutterWebViewChromeClient(PluginRegistry.Registrar registrar, Context context) {
     super();
@@ -106,10 +136,35 @@ public class FlutterWebViewChromeClient extends WebChromeClient
     super.onReceivedTouchIconUrl(view, url, precomposed);
   }
 
-  @Override
-  public void onShowCustomView(View view, CustomViewCallback callback) {
-    super.onShowCustomView(view, callback);
+  protected ViewGroup getRootView() {
+    return (ViewGroup) activity.findViewById(android.R.id.content);
   }
+
+  @Override
+  public void onShowCustomView(View paramView, CustomViewCallback paramCustomViewCallback) {
+      if (this.mCustomView != null) {
+          onHideCustomView();
+          return;
+      }
+
+      View decorView = getRootView();
+
+      this.mCustomView = paramView;
+      this.mOriginalSystemUiVisibility = decorView.getSystemUiVisibility();
+      this.mOriginalOrientation = activity.getRequestedOrientation();
+      this.mCustomViewCallback = paramCustomViewCallback;
+      this.mCustomView.setBackgroundColor(Color.BLACK);
+
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+        decorView.setSystemUiVisibility(FULLSCREEN_SYSTEM_UI_VISIBILITY_KITKAT);
+      } else {
+        decorView.setSystemUiVisibility(FULLSCREEN_SYSTEM_UI_VISIBILITY);
+      }
+
+      activity.getWindow().setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
+      ((FrameLayout) decorView).addView(this.mCustomView, FULLSCREEN_LAYOUT_PARAMS);
+  }
+
 
   @Override
   public void onShowCustomView(View view, int requestedOrientation, CustomViewCallback callback) {
@@ -118,7 +173,14 @@ public class FlutterWebViewChromeClient extends WebChromeClient
 
   @Override
   public void onHideCustomView() {
-    super.onHideCustomView();
+    View decorView = getRootView();
+    ((FrameLayout) decorView).removeView(this.mCustomView);
+    this.mCustomView = null;
+    decorView.setSystemUiVisibility(this.mOriginalSystemUiVisibility);
+    activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_USER);
+    this.mCustomViewCallback.onCustomViewHidden();
+    this.mCustomViewCallback = null;
+    activity.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
   }
 
   @Override
